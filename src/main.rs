@@ -1,8 +1,9 @@
 use crossterm::{
     cursor,
-    event::{read, Event, KeyCode, KeyEvent, poll},
+    event::{poll, read, Event, KeyCode, KeyEvent},
     style::{self, Stylize},
-    terminal::{self, enable_raw_mode}, ExecutableCommand, QueueableCommand, Result,
+    terminal::{self, enable_raw_mode},
+    ExecutableCommand, QueueableCommand, Result,
 };
 use std::{
     fmt,
@@ -59,12 +60,30 @@ fn main() {
         pos: Location { x: 0, y: 0 },
         dir: Direction::Right,
     }));
+    let mut tick = 0u64;
     loop {
         print_snake(&snake);
         read_key(&mut snake);
+        if tick % 5 == 0 {
+            add_segment(&mut snake);
+        }
         update_snake(&mut snake);
         std::thread::sleep(Duration::from_millis(500));
+        tick += 1;
     }
+}
+
+fn add_segment(snake: &mut Snake) {
+    let p = &snake.head;
+    while let Some(t) = p.next {
+        p = &t;
+    }
+    let new_segment = Segment {
+        pos: p.pos.clone(),
+        dir: p.dir.clone(),
+        next: None,
+    };
+    p.next = Some(Box::new(new_segment));
 }
 
 fn read_key(snake: &mut Snake) {
