@@ -137,12 +137,12 @@ fn playfield(stdout: &mut std::io::Stdout, score: u32) {
             .unwrap()
             .queue(style::PrintStyledContent("*".green()))
             .unwrap();
-    let s = format!("Score: {}", score);
-    stdout
-        .queue(cursor::MoveTo(COLS + 5, 2))
-        .unwrap()
-        .queue(style::PrintStyledContent(s.dark_blue()))
-        .unwrap();
+        let s = format!("Score: {}", score);
+        stdout
+            .queue(cursor::MoveTo(COLS + 5, 2))
+            .unwrap()
+            .queue(style::PrintStyledContent(s.dark_blue()))
+            .unwrap();
     }
 }
 
@@ -152,36 +152,8 @@ fn game_over() {
         .queue(cursor::MoveTo(COLS / 2, ROWS / 2))
         .unwrap()
         .queue(style::PrintStyledContent("GAME OVER".red()))
-        .unwrap()
-        .queue(cursor::MoveTo(0, ROWS + 2))
-        .ok();
-    disable_raw_mode().ok();
-    execute!(stdout, Show).ok();
-    exit(0);
-}
-
-fn main() {
-    enable_raw_mode().expect("failed to set raw mode");
-    execute!(stdout(), Hide).ok();
-    let mut snake = Snake::new();
-    let mut tick = 0u64;
-    let mut food = Food {
-        pos: Location::random(),
-    };
-    let mut score = 0;
-    loop {
-        print(&snake, &food, score);
-        read_key(&mut snake);
-        snake.update_snake(tick);
-        if hit(&snake, &food) {
-            score += 100;
-            food = Food {
-                pos: Location::random(),
-            }
-        }
-        std::thread::sleep(Duration::from_millis(500));
-        tick = tick.wrapping_add(1);
-    }
+        .unwrap();
+    cleanup()
 }
 
 fn hit(snake: &Snake, food: &Food) -> bool {
@@ -223,16 +195,44 @@ fn read_key(snake: &mut Snake) {
                     }
                     KeyCode::Char(c) => {
                         if c == 'q' {
-                            let mut stdout = stdout();
-                            stdout.queue(cursor::MoveTo(0, ROWS + 2)).ok();
-                            disable_raw_mode().ok();
-                            execute!(stdout, Show).ok();
-                            exit(0);
+                            cleanup();
                         }
                     }
                     _ => {}
                 }
             }
         }
+    }
+}
+
+fn cleanup() {
+    let mut stdout = stdout();
+    stdout.queue(cursor::MoveTo(0, ROWS + 2)).ok();
+    disable_raw_mode().ok();
+    execute!(stdout, Show).ok();
+    exit(0);
+}
+
+fn main() {
+    enable_raw_mode().expect("failed to set raw mode");
+    execute!(stdout(), Hide).ok();
+    let mut snake = Snake::new();
+    let mut tick = 0u64;
+    let mut food = Food {
+        pos: Location::random(),
+    };
+    let mut score = 0;
+    loop {
+        print(&snake, &food, score);
+        read_key(&mut snake);
+        snake.update_snake(tick);
+        if hit(&snake, &food) {
+            score += 100;
+            food = Food {
+                pos: Location::random(),
+            }
+        }
+        std::thread::sleep(Duration::from_millis(500));
+        tick = tick.wrapping_add(1);
     }
 }
