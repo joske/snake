@@ -1,12 +1,12 @@
 use crossterm::{
     cursor,
-    event::{poll, read, Event, KeyCode, KeyEvent},
+    event::{poll, read, Event, KeyCode},
     style::{self, Stylize},
     terminal::{self, enable_raw_mode},
-    ExecutableCommand, QueueableCommand, Result,
+    ExecutableCommand, QueueableCommand,
 };
 use std::{
-    fmt,
+    collections::LinkedList,
     io::{stdout, Write},
     time::Duration,
 };
@@ -30,60 +30,90 @@ enum Direction {
 
 #[derive(Debug)]
 struct Snake {
-    head: Box<Segment>,
+    segments: LinkedList<Segment>,
+    dir: Direction,
 }
 
 impl Snake {
     pub fn new() -> Self {
         Snake {
-            head: Box::new(Segment {
-                next: None,
+            segments: LinkedList::from([Segment {
                 pos: Location { x: 1, y: 0 },
-                dir: Direction::Right,
-            }),
+            }]),
+            dir: Direction::Right,
         }
+    }
+
+    fn add_segment(&mut self) {
+        let last = self.segments.back().unwrap(); // always at least 1 segment
+        let (x, y) = match self.dir {
+            Direction::Right => (last.pos.x - 1, last.pos.y),
+            Direction::Up => (last.pos.x, last.pos.y - 1),
+            Direction::Down => (last.pos.x, last.pos.y + 1),
+            Direction::Left => (last.pos.x + 1, last.pos.y),
+        };
+        let s = Segment {
+            pos: Location { x, y },
+        };
+        self.segments.push_back(s);
+    }
+
+    fn print_snake(&self) {
+        let mut stdout = stdout();
+        stdout
+            .execute(terminal::Clear(terminal::ClearType::All))
+            .ok();
+
+        for cur in self.segments.iter() {
+            stdout
+                .queue(cursor::MoveTo(cur.pos.x, cur.pos.y))
+                .unwrap()
+                .queue(style::PrintStyledContent("*".white()))
+                .ok();
+        }
+    }
+
+    fn update_snake(&mut self) {
+        let head = self.segments.front().unwrap(); // there's always a head
+
+        let (x, y) = match self.dir {
+            Direction::Up => (head.pos.y, head.pos.y - 1),
+            Direction::Down => (head.pos.y, head.pos.y + 1),
+            Direction::Left => (head.pos.x, head.pos.x - 1),
+            Direction::Right => (head.pos.x, head.pos.x + 1),
+        };
+        let new_head = Segment {
+            pos: Location { x, y },
+        };
+        self.segments.push_front(new_head);
+        self.segments.pop_back();
     }
 }
 
 #[derive(Debug)]
 struct Segment {
-    next: Option<Box<Segment>>,
     pos: Location,
-    dir: Direction,
 }
 
 fn main() {
     enable_raw_mode().expect("failed to set raw mode");
     let mut snake = Snake::new();
-    snake.head.next = Some(Box::new(Segment {
-        next: None,
-        pos: Location { x: 0, y: 0 },
-        dir: Direction::Right,
-    }));
+    snake.segments.push_back(
+        Segment {
+            pos: Location { x: 0, y: 0 },
+        },
+    );
     let mut tick = 0u64;
     loop {
-        print_snake(&snake);
+        snake.print_snake();
         read_key(&mut snake);
+        snake.update_snake();
         if tick % 5 == 0 {
-            add_segment(&mut snake);
+            snake.add_segment();
         }
-        update_snake(&mut snake);
         std::thread::sleep(Duration::from_millis(500));
         tick += 1;
     }
-}
-
-fn add_segment(snake: &mut Snake) {
-    let p = &snake.head;
-    while let Some(t) = p.next {
-        p = &t;
-    }
-    let new_segment = Segment {
-        pos: p.pos.clone(),
-        dir: p.dir.clone(),
-        next: None,
-    };
-    p.next = Some(Box::new(new_segment));
 }
 
 fn read_key(snake: &mut Snake) {
@@ -95,16 +125,16 @@ fn read_key(snake: &mut Snake) {
                 if event.kind == crossterm::event::KeyEventKind::Press {
                     match event.code {
                         KeyCode::Left => {
-                            snake.head.dir = Direction::Left;
+                            snake.dir = Direction::Left;
                         }
                         KeyCode::Down => {
-                            snake.head.dir = Direction::Down;
+                            snake.dir = Direction::Down;
                         }
                         KeyCode::Right => {
-                            snake.head.dir = Direction::Right;
+                            snake.dir = Direction::Right;
                         }
                         KeyCode::Up => {
-                            snake.head.dir = Direction::Up;
+                            snake.dir = Direction::Up;
                         }
                         _ => {}
                     }
@@ -112,53 +142,5 @@ fn read_key(snake: &mut Snake) {
             }
             _ => {}
         }
-    }
-}
-
-fn print_snake(snake: &Snake) {
-    let mut stdout = stdout();
-    stdout.execute(terminal::Clear(terminal::ClearType::All));
-
-    let mut cur = &snake.head;
-    stdout
-        .queue(cursor::MoveTo(cur.pos.x, cur.pos.y))
-        .unwrap()
-        .queue(style::PrintStyledContent("*".white()));
-    while let Some(next) = &cur.next {
-        stdout
-            .queue(cursor::MoveTo(next.pos.x, next.pos.y))
-            .unwrap()
-            .queue(style::PrintStyledContent("=".white()));
-        cur = next;
-    }
-
-    let s = format!("snake: {:?}", snake);
-
-    stdout
-        .queue(cursor::MoveTo(0, 2))
-        .unwrap()
-        .queue(style::Print(s));
-
-    stdout.flush();
-}
-
-fn update_snake(snake: &mut Snake) {
-    let mut cur = &mut snake.head;
-    update_segment(&mut cur);
-    while let Some(next) = &mut cur.next {
-        update_segment(next);
-        if cur.dir != next.dir {
-            next.dir = cur.dir.clone();
-        }
-        cur = next;
-    }
-}
-
-fn update_segment(cur: &mut Segment) {
-    match cur.dir {
-        Direction::Up => cur.pos.y = cur.pos.y - 1,
-        Direction::Down => cur.pos.y = cur.pos.y + 1,
-        Direction::Left => cur.pos.x = cur.pos.x - 1,
-        Direction::Right => cur.pos.x = cur.pos.x + 1,
     }
 }
