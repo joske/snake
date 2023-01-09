@@ -1,13 +1,15 @@
 use crossterm::{
-    cursor,
+    cursor::{self, Hide},
     event::{poll, read, Event, KeyCode},
+    execute,
     style::{self, Stylize},
-    terminal::{self, enable_raw_mode},
+    terminal::{self, disable_raw_mode, enable_raw_mode},
     ExecutableCommand, QueueableCommand,
 };
 use std::{
     collections::LinkedList,
     io::{stdout, Write},
+    process::exit,
     time::Duration,
 };
 
@@ -37,9 +39,17 @@ struct Snake {
 impl Snake {
     pub fn new() -> Self {
         Snake {
-            segments: LinkedList::from([Segment {
-                pos: Location { x: 1, y: 0 },
-            }]),
+            segments: LinkedList::from([
+                Segment {
+                    pos: Location { x: 2, y: 0 },
+                },
+                Segment {
+                    pos: Location { x: 1, y: 0 },
+                },
+                Segment {
+                    pos: Location { x: 0, y: 0 },
+                },
+            ]),
             dir: Direction::Right,
         }
     }
@@ -47,10 +57,10 @@ impl Snake {
     fn add_segment(&mut self) {
         let last = self.segments.back().unwrap(); // always at least 1 segment
         let (x, y) = match self.dir {
-            Direction::Right => (last.pos.x - 1, last.pos.y),
-            Direction::Up => (last.pos.x, last.pos.y - 1),
-            Direction::Down => (last.pos.x, last.pos.y + 1),
             Direction::Left => (last.pos.x + 1, last.pos.y),
+            Direction::Right => (last.pos.x - 1, last.pos.y),
+            Direction::Up => (last.pos.x, last.pos.y + 1),
+            Direction::Down => (last.pos.x, last.pos.y - 1),
         };
         let s = Segment {
             pos: Location { x, y },
@@ -71,22 +81,25 @@ impl Snake {
                 .queue(style::PrintStyledContent("*".white()))
                 .ok();
         }
+        stdout.flush().ok();
     }
 
-    fn update_snake(&mut self) {
+    fn update_snake(&mut self, tick: u64) {
         let head = self.segments.front().unwrap(); // there's always a head
 
         let (x, y) = match self.dir {
-            Direction::Up => (head.pos.y, head.pos.y - 1),
-            Direction::Down => (head.pos.y, head.pos.y + 1),
-            Direction::Left => (head.pos.x, head.pos.x - 1),
-            Direction::Right => (head.pos.x, head.pos.x + 1),
+            Direction::Up => (head.pos.x, head.pos.y - 1),
+            Direction::Down => (head.pos.x, head.pos.y + 1),
+            Direction::Left => (head.pos.x - 1, head.pos.y),
+            Direction::Right => (head.pos.x + 1, head.pos.y),
         };
         let new_head = Segment {
             pos: Location { x, y },
         };
         self.segments.push_front(new_head);
-        self.segments.pop_back();
+        if tick % 5 != 0 {
+            self.segments.pop_back();
+        }
     }
 }
 
@@ -97,31 +110,22 @@ struct Segment {
 
 fn main() {
     enable_raw_mode().expect("failed to set raw mode");
+    execute!(stdout(), Hide).ok();
     let mut snake = Snake::new();
-    snake.segments.push_back(
-        Segment {
-            pos: Location { x: 0, y: 0 },
-        },
-    );
     let mut tick = 0u64;
     loop {
         snake.print_snake();
         read_key(&mut snake);
-        snake.update_snake();
-        if tick % 5 == 0 {
-            snake.add_segment();
-        }
+        snake.update_snake(tick);
         std::thread::sleep(Duration::from_millis(500));
-        tick += 1;
+        tick = tick.wrapping_add(1);
     }
 }
 
 fn read_key(snake: &mut Snake) {
     if poll(Duration::from_millis(100)).unwrap_or(false) {
-        println!("got event");
         match read() {
             Ok(Event::Key(event)) => {
-                println!("got event {:?}", event);
                 if event.kind == crossterm::event::KeyEventKind::Press {
                     match event.code {
                         KeyCode::Left => {
@@ -135,6 +139,12 @@ fn read_key(snake: &mut Snake) {
                         }
                         KeyCode::Up => {
                             snake.dir = Direction::Up;
+                        }
+                        KeyCode::Char(c) => {
+                            if c == 'q' {
+                                disable_raw_mode().ok();
+                                exit(0);
+                            }
                         }
                         _ => {}
                     }
