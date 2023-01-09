@@ -1,5 +1,5 @@
 use crossterm::{
-    cursor::{self, Hide},
+    cursor::{self, Hide, Show},
     event::{poll, read, Event, KeyCode},
     execute,
     style::{self, Stylize},
@@ -41,31 +41,17 @@ impl Snake {
         Snake {
             segments: LinkedList::from([
                 Segment {
-                    pos: Location { x: 2, y: 0 },
+                    pos: Location { x: 3, y: 1 },
                 },
                 Segment {
-                    pos: Location { x: 1, y: 0 },
+                    pos: Location { x: 2, y: 1 },
                 },
                 Segment {
-                    pos: Location { x: 0, y: 0 },
+                    pos: Location { x: 1, y: 1 },
                 },
             ]),
             dir: Direction::Right,
         }
-    }
-
-    fn add_segment(&mut self) {
-        let last = self.segments.back().unwrap(); // always at least 1 segment
-        let (x, y) = match self.dir {
-            Direction::Left => (last.pos.x + 1, last.pos.y),
-            Direction::Right => (last.pos.x - 1, last.pos.y),
-            Direction::Up => (last.pos.x, last.pos.y + 1),
-            Direction::Down => (last.pos.x, last.pos.y - 1),
-        };
-        let s = Segment {
-            pos: Location { x, y },
-        };
-        self.segments.push_back(s);
     }
 
     fn print_snake(&self) {
@@ -79,7 +65,7 @@ impl Snake {
                 .queue(cursor::MoveTo(cur.pos.x, cur.pos.y))
                 .unwrap()
                 .queue(style::PrintStyledContent("*".white()))
-                .ok();
+                .unwrap();
         }
         stdout.flush().ok();
     }
@@ -93,6 +79,10 @@ impl Snake {
             Direction::Left => (head.pos.x - 1, head.pos.y),
             Direction::Right => (head.pos.x + 1, head.pos.y),
         };
+        if x == 0 || x > COLS || y == 0 || y > ROWS {
+            // kapoet
+            game_over();
+        }
         let new_head = Segment {
             pos: Location { x, y },
         };
@@ -101,6 +91,20 @@ impl Snake {
             self.segments.pop_back();
         }
     }
+}
+
+fn game_over() {
+    let mut stdout = stdout();
+    stdout
+        .queue(cursor::MoveTo(COLS / 2, ROWS / 2))
+        .unwrap()
+        .queue(style::PrintStyledContent("GAME OVER".red()))
+        .unwrap()
+        .queue(cursor::MoveTo(0, ROWS))
+        .ok();
+    disable_raw_mode().ok();
+    execute!(stdout, Show).ok();
+    exit(0);
 }
 
 #[derive(Debug)]
@@ -129,15 +133,27 @@ fn read_key(snake: &mut Snake) {
                 if event.kind == crossterm::event::KeyEventKind::Press {
                     match event.code {
                         KeyCode::Left => {
+                            if snake.dir == Direction::Right {
+                                game_over();
+                            }
                             snake.dir = Direction::Left;
                         }
                         KeyCode::Down => {
+                            if snake.dir == Direction::Up {
+                                game_over();
+                            }
                             snake.dir = Direction::Down;
                         }
                         KeyCode::Right => {
+                            if snake.dir == Direction::Left {
+                                game_over();
+                            }
                             snake.dir = Direction::Right;
                         }
                         KeyCode::Up => {
+                            if snake.dir == Direction::Down {
+                                game_over();
+                            }
                             snake.dir = Direction::Up;
                         }
                         KeyCode::Char(c) => {
