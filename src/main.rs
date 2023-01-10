@@ -97,7 +97,7 @@ impl Snake {
     }
 
     fn hit_tail(&self, x: u16, y: u16) -> bool {
-        for cur in self.segments.iter() {
+        for cur in &self.segments {
             if x == cur.pos.x && y == cur.pos.y {
                 return true;
             }
@@ -110,7 +110,7 @@ impl Snake {
 fn print(snake: &Snake, food: &Food, score: u32) {
     let mut stdout = stdout();
     playfield(&mut stdout, score);
-    for cur in snake.segments.iter() {
+    for cur in &snake.segments {
         stdout
             .queue(cursor::MoveTo(cur.pos.x, cur.pos.y))
             .unwrap()
@@ -164,15 +164,11 @@ fn game_over() {
         .unwrap()
         .queue(style::PrintStyledContent("GAME OVER".red()))
         .unwrap();
-    cleanup()
+    cleanup();
 }
 
 fn hit(snake: &Snake, food: &Food) -> bool {
-    if snake.segments.front().unwrap().pos == food.pos {
-        true
-    } else {
-        false
-    }
+    snake.segments.front().unwrap().pos == food.pos
 }
 
 fn read_key(snake: &mut Snake) {
