@@ -16,6 +16,7 @@ use std::{
 
 const COLS: u16 = 30;
 const ROWS: u16 = 20;
+const DELAY: u64 = 250;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Location {
@@ -26,8 +27,8 @@ impl Location {
     fn random() -> Self {
         let mut rng = rand::thread_rng();
         Self {
-            x: rng.gen_range(0..COLS),
-            y: rng.gen_range(0..ROWS),
+            x: rng.gen_range(1..COLS),
+            y: rng.gen_range(1..ROWS),
         }
     }
 }
@@ -82,7 +83,7 @@ impl Snake {
             Direction::Left => (head.pos.x - 1, head.pos.y),
             Direction::Right => (head.pos.x + 1, head.pos.y),
         };
-        if x == 0 || x > COLS || y == 0 || y > ROWS {
+        if x == 0 || x > COLS || y == 0 || y > ROWS || self.hit_tail(x, y) {
             // kapoet
             game_over();
         }
@@ -90,10 +91,20 @@ impl Snake {
             pos: Location { x, y },
         };
         self.segments.push_front(new_head);
-        if tick % 5 != 0 {
+        if tick % 10 != 0 {
             self.segments.pop_back();
         }
     }
+
+    fn hit_tail(&self, x: u16, y: u16) -> bool {
+        for cur in self.segments.iter() {
+            if x == cur.pos.x && y == cur.pos.y {
+                return true;
+            }
+        }
+        false
+    }
+
 }
 
 fn print(snake: &Snake, food: &Food, score: u32) {
@@ -141,7 +152,7 @@ fn playfield(stdout: &mut std::io::Stdout, score: u32) {
         stdout
             .queue(cursor::MoveTo(COLS + 5, 2))
             .unwrap()
-            .queue(style::PrintStyledContent(s.dark_blue()))
+            .queue(style::PrintStyledContent(s.white()))
             .unwrap();
     }
 }
@@ -165,32 +176,20 @@ fn hit(snake: &Snake, food: &Food) -> bool {
 }
 
 fn read_key(snake: &mut Snake) {
-    if poll(Duration::from_millis(100)).unwrap_or(false) {
+    if poll(Duration::from_millis(10)).unwrap_or(false) {
         if let Ok(Event::Key(event)) = read() {
             if event.kind == crossterm::event::KeyEventKind::Press {
                 match event.code {
                     KeyCode::Left => {
-                        if snake.dir == Direction::Right {
-                            game_over();
-                        }
                         snake.dir = Direction::Left;
                     }
                     KeyCode::Down => {
-                        if snake.dir == Direction::Up {
-                            game_over();
-                        }
                         snake.dir = Direction::Down;
                     }
                     KeyCode::Right => {
-                        if snake.dir == Direction::Left {
-                            game_over();
-                        }
                         snake.dir = Direction::Right;
                     }
                     KeyCode::Up => {
-                        if snake.dir == Direction::Down {
-                            game_over();
-                        }
                         snake.dir = Direction::Up;
                     }
                     KeyCode::Char(c) => {
@@ -232,7 +231,7 @@ fn main() {
                 pos: Location::random(),
             }
         }
-        std::thread::sleep(Duration::from_millis(500));
+        std::thread::sleep(Duration::from_millis(DELAY));
         tick = tick.wrapping_add(1);
     }
 }
