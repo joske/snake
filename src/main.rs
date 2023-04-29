@@ -83,7 +83,7 @@ impl Snake {
             Direction::Left => (head.pos.x - 1, head.pos.y),
             Direction::Right => (head.pos.x + 1, head.pos.y),
         };
-        if x == 0 || x > COLS || y == 0 || y > ROWS || self.hit_tail(x, y) {
+        if x == 0 || x >= COLS || y == 0 || y >= ROWS || self.hit_tail(x, y) {
             // kapoet
             game_over();
         }
@@ -104,7 +104,6 @@ impl Snake {
         }
         false
     }
-
 }
 
 fn print(snake: &Snake, food: &Food, score: u32) {
@@ -121,6 +120,13 @@ fn print(snake: &Snake, food: &Food, score: u32) {
         .queue(cursor::MoveTo(food.pos.x, food.pos.y))
         .unwrap()
         .queue(style::PrintStyledContent("@".blue()))
+        .unwrap();
+    let head = snake.segments.front().unwrap(); // there's always a head
+    let s = format!("x: {}, y: {}", head.pos.x, head.pos.y);
+    stdout
+        .queue(cursor::MoveTo(COLS + 5, 5))
+        .unwrap()
+        .queue(style::PrintStyledContent(s.white()))
         .unwrap();
     stdout.flush().ok();
 }
@@ -218,9 +224,9 @@ fn main() {
     };
     let mut score = 0;
     loop {
-        print(&snake, &food, score);
         read_key(&mut snake);
         snake.update_snake(tick);
+        print(&snake, &food, score);
         if hit(&snake, &food) {
             score += 100;
             food = Food {
