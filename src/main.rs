@@ -25,10 +25,10 @@ struct Location {
 }
 impl Location {
     fn random() -> Self {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         Self {
-            x: rng.gen_range(1..COLS),
-            y: rng.gen_range(1..ROWS),
+            x: rng.random_range(1..COLS),
+            y: rng.random_range(1..ROWS),
         }
     }
 }
@@ -91,7 +91,7 @@ impl Snake {
             pos: Location { x, y },
         };
         self.segments.push_front(new_head);
-        if tick % 10 != 0 {
+        if !tick.is_multiple_of(10) {
             self.segments.pop_back();
         }
     }
