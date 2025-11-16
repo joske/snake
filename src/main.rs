@@ -1,15 +1,15 @@
 use crossterm::{
+    ExecutableCommand, QueueableCommand,
     cursor::{self, Hide, Show},
-    event::{poll, read, Event, KeyCode},
+    event::{Event, KeyCode, poll, read},
     execute,
     style::{self, Stylize},
     terminal::{self, disable_raw_mode, enable_raw_mode},
-    ExecutableCommand, QueueableCommand,
 };
 use rand::Rng;
 use std::{
     collections::LinkedList,
-    io::{stdout, Write},
+    io::{Write, stdout},
     process::exit,
     time::Duration,
 };
@@ -178,30 +178,29 @@ fn game_over() {
 }
 
 fn read_key(snake: &mut Snake) {
-    if poll(Duration::from_millis(10)).unwrap_or(false) {
-        if let Ok(Event::Key(event)) = read() {
-            if event.kind == crossterm::event::KeyEventKind::Press {
-                match event.code {
-                    KeyCode::Left => {
-                        snake.dir = Direction::Left;
-                    }
-                    KeyCode::Down => {
-                        snake.dir = Direction::Down;
-                    }
-                    KeyCode::Right => {
-                        snake.dir = Direction::Right;
-                    }
-                    KeyCode::Up => {
-                        snake.dir = Direction::Up;
-                    }
-                    KeyCode::Char(c) => {
-                        if c == 'q' {
-                            cleanup();
-                        }
-                    }
-                    _ => {}
+    if poll(Duration::from_millis(10)).unwrap_or(false)
+        && let Ok(Event::Key(event)) = read()
+        && event.kind == crossterm::event::KeyEventKind::Press
+    {
+        match event.code {
+            KeyCode::Left => {
+                snake.dir = Direction::Left;
+            }
+            KeyCode::Down => {
+                snake.dir = Direction::Down;
+            }
+            KeyCode::Right => {
+                snake.dir = Direction::Right;
+            }
+            KeyCode::Up => {
+                snake.dir = Direction::Up;
+            }
+            KeyCode::Char(c) => {
+                if c == 'q' {
+                    cleanup();
                 }
             }
+            _ => {}
         }
     }
 }
