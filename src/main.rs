@@ -57,7 +57,7 @@ struct Snake {
 }
 
 impl Snake {
-   pub fn new() -> Self {
+    pub fn new() -> Self {
         Snake {
             segments: LinkedList::from([
                 Segment {
@@ -108,7 +108,6 @@ impl Snake {
     fn hit(&self, food: &Food) -> bool {
         self.segments.front().unwrap().pos == food.pos
     }
-
 }
 
 fn print(snake: &Snake, food: &Food, score: u32) {
