@@ -57,7 +57,7 @@ struct Snake {
 }
 
 impl Snake {
-    pub fn new() -> Self {
+   pub fn new() -> Self {
         Snake {
             segments: LinkedList::from([
                 Segment {
@@ -104,6 +104,11 @@ impl Snake {
         }
         false
     }
+
+    fn hit(&self, food: &Food) -> bool {
+        self.segments.front().unwrap().pos == food.pos
+    }
+
 }
 
 fn print(snake: &Snake, food: &Food, score: u32) {
@@ -173,10 +178,6 @@ fn game_over() {
     cleanup();
 }
 
-fn hit(snake: &Snake, food: &Food) -> bool {
-    snake.segments.front().unwrap().pos == food.pos
-}
-
 fn read_key(snake: &mut Snake) {
     if poll(Duration::from_millis(10)).unwrap_or(false) {
         if let Ok(Event::Key(event)) = read() {
@@ -227,7 +228,7 @@ fn main() {
         read_key(&mut snake);
         snake.update_snake(tick);
         print(&snake, &food, score);
-        if hit(&snake, &food) {
+        if snake.hit(&food) {
             score += 100;
             food = Food {
                 pos: Location::random(),
